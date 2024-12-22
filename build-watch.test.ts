@@ -49,7 +49,6 @@ it("errors when calling watch after close", async () => {
 
   const watcher = buildWatch(buildConfig, { quiet: true });
 
-  // calling close early
   watcher.close();
 
   try {
