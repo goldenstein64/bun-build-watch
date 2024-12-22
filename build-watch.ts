@@ -395,7 +395,7 @@ export default function buildWatch(
       );
     }
 
-    watchers = startWatching(await findImports(entrypointPaths, scanOptions));
     await buildAndEmit();
+    watchers = startWatching(await findImports(entrypointPaths, scanOptions));
   });
 }
