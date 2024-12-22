@@ -188,29 +188,31 @@ export async function findImports(
 }
 
 /** @returns an array of objects meant to be printed by `console.table`. */
-export function formatBuildOutput(
-  buildOutput: BuildOutput
-): { path: string; size: string }[] {
-  return buildOutput.outputs.map(({ path: outPath, size }) => {
-    const pathFormatted = path.relative(CURRENT_DIR, outPath);
-    const sizeFormatted =
-      size >= 1_000_000 ? `${(size / 1_000_000).toFixed(2)} MB`
-      : size >= 1_000 ? `${(size / 1_000).toFixed(2)} KB`
-      : `${size} B`;
+export function formatBuildOutput(buildOutput: BuildOutput): string {
+  return Bun.inspect.table(
+    buildOutput.outputs.map(({ path: outPath, size }) => {
+      const pathFormatted = path.relative(CURRENT_DIR, outPath);
+      const sizeFormatted =
+        size >= 1_000_000 ? `${(size / 1_000_000).toFixed(2)} MB`
+        : size >= 1_000 ? `${(size / 1_000).toFixed(2)} KB`
+        : `${size} B`;
 
-    return { path: pathFormatted, size: sizeFormatted };
-  });
+      return { path: pathFormatted, size: sizeFormatted };
+    }),
+    { colors: true }
+  );
 }
 
 /** @returns an array of objects meant to be printed by `console.table` */
-export function formatWatchOutput(
-  paths: Iterable<string>
-): { watching: string }[] {
-  return Iterator.from(paths)
-    .map((filePath) => ({
-      watching: path.relative(CURRENT_DIR, filePath),
-    }))
-    .toArray();
+export function formatWatchOutput(paths: Iterable<string>): string {
+  return Bun.inspect.table(
+    Iterator.from(paths)
+      .map((filePath) => ({
+        watching: path.relative(CURRENT_DIR, filePath),
+      }))
+      .toArray(),
+    { colors: true }
+  );
 }
 
 function resolveGlob(...paths: [string, ...string[]]) {
@@ -312,7 +314,7 @@ export default async function buildWatch(
 
   function logBuildOutput(buildOutput: BuildOutput) {
     if (clearScreen) console.clear();
-    console.table(formatBuildOutput(buildOutput));
+    console.log(formatBuildOutput(buildOutput));
   }
 
   async function buildAndEmit() {
@@ -329,7 +331,7 @@ export default async function buildWatch(
       .map((filePath) => watch(filePath, emitFileChanges))
       .toArray();
 
-    console.table(formatWatchOutput(paths));
+    console.log(formatWatchOutput(paths));
 
     return newWatchers;
   }
