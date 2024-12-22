@@ -317,7 +317,7 @@ export default function buildWatch(
     findTSConfig,
   };
 
-  let watchers: FSWatcher[];
+  let watchers: FSWatcher[] = [];
 
   function onInterrupt() {
     internal.emit("close");

@@ -41,3 +41,21 @@ it("works", async () => {
   expect(listeners.change).toBeCalledTimes(1);
   expect(buildMock).toBeCalledTimes(2);
 });
+
+it("errors when calling watch after close", async () => {
+  const buildConfig: BuildConfig = {
+    entrypoints: [testFilePath],
+  };
+
+  const watcher = buildWatch(buildConfig, { quiet: true });
+
+  // calling close early
+  watcher.close();
+
+  try {
+    await watcher.watch();
+    expect.unreachable();
+  } catch (err) {
+    expect(err).toBeInstanceOf(Error);
+  }
+});
