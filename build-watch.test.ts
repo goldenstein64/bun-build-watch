@@ -40,6 +40,49 @@ it("works", async () => {
   expect(listeners.close).toBeCalledTimes(1);
   expect(listeners.change).toBeCalledTimes(1);
   expect(buildMock).toBeCalledTimes(2);
+
+  buildMock.mockRestore();
+});
+
+it("makes calling watch do nothing after calling it once", async () => {
+  const buildMock = mockBuild();
+
+  const buildConfig: BuildConfig = {
+    entrypoints: [testFilePath],
+  };
+
+  const watcher = buildWatch(buildConfig, { quiet: true });
+
+  const listeners = mockListeners(watcher);
+
+  expect(listeners.watch).not.toBeCalled();
+  expect(listeners.build).not.toBeCalled();
+  expect(buildMock).not.toBeCalled();
+  await watcher.watch();
+  expect(listeners.watch).toBeCalledTimes(1);
+  expect(listeners.build).toBeCalledTimes(1);
+  expect(buildMock).toBeCalledTimes(1);
+  await watcher.watch();
+  expect(listeners.watch).toBeCalledTimes(1);
+  expect(listeners.build).toBeCalledTimes(1);
+  expect(buildMock).toBeCalledTimes(1);
+
+  buildMock.mockRestore();
+});
+
+it("makes calling close do nothing after calling it once", async () => {
+  const buildConfig: BuildConfig = {
+    entrypoints: [testFilePath],
+  };
+
+  const watcher = buildWatch(buildConfig, { quiet: true });
+
+  const listeners = mockListeners(watcher);
+
+  watcher.close();
+  expect(listeners.close).toBeCalledTimes(1);
+  watcher.close();
+  expect(listeners.close).toBeCalledTimes(1);
 });
 
 it("errors when calling watch after close", async () => {

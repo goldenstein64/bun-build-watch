@@ -249,7 +249,7 @@ type BuildWatchEvents = {
 export class BuildWatcher extends EventEmitter<BuildWatchEvents> {
   readonly #internal: EventEmitter<BuildWatchEvents>;
   readonly #watch: () => Promise<void>;
-  #closed: boolean = false;
+  #state: "ready" | "watching" | "closed" = "ready";
 
   constructor(
     internal: EventEmitter<BuildWatchEvents>,
@@ -266,18 +266,20 @@ export class BuildWatcher extends EventEmitter<BuildWatchEvents> {
 
   /** starts building and watching files */
   async watch(): Promise<void> {
-    if (this.#closed) {
+    if (this.#state === "closed")
       throw new Error("cannot re-watch a closed BuildWatcher");
-    }
+    if (this.#state === "watching") return;
+
     await this.#watch();
+    this.#state = "watching";
   }
 
   /** stops building and watching files */
   close() {
-    if (this.#closed) return;
+    if (this.#state === "closed") return;
 
     this.#internal.emit("close");
-    this.#closed = true;
+    this.#state = "closed";
   }
 }
 
