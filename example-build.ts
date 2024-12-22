@@ -12,7 +12,7 @@ const BUILD_CONFIG: BuildConfig = {
 };
 
 const {
-  values: { watch, rescan, "no-clear-screen": noClearScreen, exclude },
+  values: { watch, rescan, "no-clear-screen": noClearScreen, exclude, quiet },
 } = parseArgs({
   args: Bun.argv,
   options: {
@@ -34,6 +34,10 @@ const {
       short: "x",
       default: ["./node_modules/**"],
     },
+    quiet: {
+      type: "boolean",
+      default: false,
+    },
   },
   strict: true,
   allowPositionals: true,
@@ -44,6 +48,7 @@ if (watch) {
     rescan,
     clearScreen: !noClearScreen,
     exclude,
+    quiet,
   });
 } else {
   await Bun.build(BUILD_CONFIG);

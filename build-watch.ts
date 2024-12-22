@@ -37,8 +37,11 @@ type ScanOptions = Readonly<{
 }>;
 
 export type BuildWatchOptions = Readonly<{
-  /** Disable clearing the terminal screen on reload. Defaults to `true`. */
+  /** Disable clearing the terminal screen on change. Defaults to `true`. */
   clearScreen?: boolean;
+
+  /** Disable logging to terminal screen on change. Defaults to `false`. */
+  quiet?: boolean;
 
   /**
    * Refresh the dependency tree every time `Bun.build` is called. Defaults to
@@ -234,6 +237,7 @@ function resolveGlob(...paths: [string, ...string[]]) {
 type BuildWatchEvents = {
   change: [event: WatchEventType, filename: string | null];
   build: [buildOutput: BuildOutput];
+  watch: [paths: string[]];
   close: [];
 };
 
@@ -250,6 +254,7 @@ export class BuildWatcher extends EventEmitter<BuildWatchEvents> {
     this.#internal = internal;
     internal.on("change", (...args) => this.emit("change", ...args));
     internal.on("build", (...args) => this.emit("build", ...args));
+    internal.on("watch", (...args) => this.emit("watch", ...args));
     internal.on("close", (...args) => this.emit("close", ...args));
   }
 
@@ -272,6 +277,7 @@ export default async function buildWatch(
   buildConfig: BuildConfig,
   {
     clearScreen = true,
+    quiet = false,
     rescan: rescanEnabled = false,
     exclude = DEFAULT_EXCLUDE,
     findTSConfig = defaultFindTSConfig,
@@ -312,11 +318,6 @@ export default async function buildWatch(
     process.exit(0);
   }
 
-  function logBuildOutput(buildOutput: BuildOutput) {
-    if (clearScreen) console.clear();
-    console.log(formatBuildOutput(buildOutput));
-  }
-
   async function buildAndEmit() {
     const buildOutput = await Bun.build(buildConfig);
     internal.emit("build", buildOutput);
@@ -327,11 +328,13 @@ export default async function buildWatch(
   }
 
   function startWatching(paths: Iterable<string>): FSWatcher[] {
-    const newWatchers = Iterator.from(paths)
-      .map((filePath) => watch(filePath, emitFileChanges))
-      .toArray();
+    const pathsArray = [...paths];
 
-    console.log(formatWatchOutput(paths));
+    const newWatchers = pathsArray.map((filePath) =>
+      watch(filePath, emitFileChanges)
+    );
+
+    internal.emit("watch", pathsArray);
 
     return newWatchers;
   }
@@ -347,12 +350,28 @@ export default async function buildWatch(
     internal.once("close", () => internal.off("build", rescan));
   }
 
+  if (!quiet) {
+    function logBuildOutput(buildOutput: BuildOutput) {
+      if (clearScreen) console.clear();
+      console.log(formatBuildOutput(buildOutput));
+    }
+
+    function logWatchOutput(paths: string[]) {
+      console.log(formatWatchOutput(paths));
+    }
+
+    internal.on("build", logBuildOutput);
+    internal.on("watch", logWatchOutput);
+    internal.once("close", () => {
+      internal.off("build", logBuildOutput);
+      internal.off("watch", logWatchOutput);
+    });
+  }
+
   process.once("SIGINT", onInterrupt);
-  internal.prependListener("build", logBuildOutput);
-  internal.prependListener("change", buildAndEmit);
+  internal.on("change", buildAndEmit);
   internal.once("close", () => {
     for (const watcher of watchers) watcher.close();
-    internal.off("build", logBuildOutput);
     internal.off("change", buildAndEmit);
   });
 
