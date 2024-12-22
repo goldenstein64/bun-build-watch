@@ -248,19 +248,36 @@ type BuildWatchEvents = {
  */
 export class BuildWatcher extends EventEmitter<BuildWatchEvents> {
   readonly #internal: EventEmitter<BuildWatchEvents>;
+  readonly #watch: () => Promise<void>;
+  #closed: boolean = false;
 
-  constructor(internal: EventEmitter<BuildWatchEvents>) {
+  constructor(
+    internal: EventEmitter<BuildWatchEvents>,
+    watch: () => Promise<void>
+  ) {
     super();
     this.#internal = internal;
+    this.#watch = watch;
     internal.on("change", (...args) => this.emit("change", ...args));
     internal.on("build", (...args) => this.emit("build", ...args));
     internal.on("watch", (...args) => this.emit("watch", ...args));
     internal.on("close", (...args) => this.emit("close", ...args));
   }
 
+  /** starts building and watching files */
+  async watch(): Promise<void> {
+    if (this.#closed) {
+      throw new Error("cannot re-watch a closed BuildWatcher");
+    }
+    await this.#watch();
+  }
+
   /** stops building and watching files */
   close() {
+    if (this.#closed) return;
+
     this.#internal.emit("close");
+    this.#closed = true;
   }
 }
 
@@ -273,7 +290,7 @@ export class BuildWatcher extends EventEmitter<BuildWatchEvents> {
  *
  * @returns {BuildWatcher} an object for stopping watch behavior and listening for events
  */
-export default async function buildWatch(
+export default function buildWatch(
   buildConfig: BuildConfig,
   {
     clearScreen = true,
@@ -282,7 +299,7 @@ export default async function buildWatch(
     exclude = DEFAULT_EXCLUDE,
     findTSConfig = defaultFindTSConfig,
   }: BuildWatchOptions = {}
-): Promise<BuildWatcher> {
+): BuildWatcher {
   const excludeGlobs = exclude
     .values()
     .map((filePath) => resolveGlob(CURRENT_DIR, filePath))
@@ -292,17 +309,6 @@ export default async function buildWatch(
   const entrypointPaths = buildConfig.entrypoints.map((entrypoint) =>
     path.resolve(CURRENT_DIR, entrypoint)
   );
-
-  const entrypointsExist = await Promise.all(
-    entrypointPaths.map((path) => Bun.file(path).exists())
-  );
-  if (!entrypointsExist.every(Boolean)) {
-    const invalidPaths = entrypointPaths
-      .values()
-      .filter((_, i) => !entrypointsExist[i])
-      .toArray();
-    throw new TypeError(`entrypoints don't exist: ${invalidPaths.join(", ")}`);
-  }
 
   const internal = new EventEmitter<BuildWatchEvents>();
 
@@ -375,8 +381,21 @@ export default async function buildWatch(
     internal.off("change", buildAndEmit);
   });
 
-  watchers = startWatching(await findImports(entrypointPaths, scanOptions));
-  await buildAndEmit();
+  return new BuildWatcher(internal, async () => {
+    const entrypointsExist = await Promise.all(
+      entrypointPaths.map((path) => Bun.file(path).exists())
+    );
+    if (!entrypointsExist.every(Boolean)) {
+      const invalidPaths = entrypointPaths
+        .values()
+        .filter((_, i) => !entrypointsExist[i])
+        .toArray();
+      throw new TypeError(
+        `entrypoints don't exist: ${invalidPaths.join(", ")}`
+      );
+    }
 
-  return new BuildWatcher(internal);
+    watchers = startWatching(await findImports(entrypointPaths, scanOptions));
+    await buildAndEmit();
+  });
 }

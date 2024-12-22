@@ -44,12 +44,13 @@ const {
 });
 
 if (watch) {
-  await buildWatch(BUILD_CONFIG, {
+  const watcher = buildWatch(BUILD_CONFIG, {
     rescan,
     clearScreen: !noClearScreen,
     exclude,
     quiet,
   });
+  await watcher.watch();
 } else {
   await Bun.build(BUILD_CONFIG);
 }
