@@ -1,5 +1,7 @@
 {
-  "name": "bun-build-watch",
+  "name": "@goldenstein64/bun-build-watch",
+  "version": "0.1.0",
+  "main": "build-watch.ts",
   "module": "build-watch.ts",
   "type": "module",
   "devDependencies": {
