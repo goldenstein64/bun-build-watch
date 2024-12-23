@@ -190,10 +190,9 @@ export async function findImports(
   return new Set(allPaths.values().flatMap((value) => value));
 }
 
-/** @returns an array of objects meant to be printed by `console.table`. */
-export function formatBuildOutput(buildOutput: BuildOutput): string {
+export function logBuildOutput(buildOutput: BuildOutput): void {
   if (buildOutput.success) {
-    return Bun.inspect.table(
+    console.table(
       buildOutput.outputs.map(({ path: outPath, size }) => {
         const pathFormatted = path.relative(CURRENT_DIR, outPath);
         const sizeFormatted =
@@ -202,23 +201,20 @@ export function formatBuildOutput(buildOutput: BuildOutput): string {
           : `${size} B`;
 
         return { path: pathFormatted, size: sizeFormatted };
-      }),
-      { colors: true }
+      })
     );
   } else {
-    return buildOutput.logs.join("\n");
+    for (const log of buildOutput.logs) console.error(log);
   }
 }
 
-/** @returns an array of objects meant to be printed by `console.table` */
-export function formatWatchOutput(paths: Iterable<string>): string {
-  return Bun.inspect.table(
+export function logWatchOutput(paths: Iterable<string>): void {
+  console.table(
     Iterator.from(paths)
       .map((filePath) => ({
         watching: path.relative(CURRENT_DIR, filePath),
       }))
-      .toArray(),
-    { colors: true }
+      .toArray()
   );
 }
 
@@ -363,20 +359,20 @@ export default function buildWatch(
   }
 
   if (!quiet) {
-    function logBuildOutput(buildOutput: BuildOutput) {
+    function logOnBuild(buildOutput: BuildOutput) {
       if (clearScreen) console.clear();
-      console.log(formatBuildOutput(buildOutput));
+      logBuildOutput(buildOutput);
     }
 
-    function logWatchOutput(paths: string[]) {
-      console.log(formatWatchOutput(paths));
+    function logOnWatch(paths: string[]) {
+      logWatchOutput(paths);
     }
 
-    internal.on("build", logBuildOutput);
-    internal.on("watch", logWatchOutput);
+    internal.on("build", logOnBuild);
+    internal.on("watch", logOnWatch);
     internal.once("close", () => {
-      internal.off("build", logBuildOutput);
-      internal.off("watch", logWatchOutput);
+      internal.off("build", logOnBuild);
+      internal.off("watch", logOnWatch);
     });
   }
 
