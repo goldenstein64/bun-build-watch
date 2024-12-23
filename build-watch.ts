@@ -192,18 +192,22 @@ export async function findImports(
 
 /** @returns an array of objects meant to be printed by `console.table`. */
 export function formatBuildOutput(buildOutput: BuildOutput): string {
-  return Bun.inspect.table(
-    buildOutput.outputs.map(({ path: outPath, size }) => {
-      const pathFormatted = path.relative(CURRENT_DIR, outPath);
-      const sizeFormatted =
-        size >= 1_000_000 ? `${(size / 1_000_000).toFixed(2)} MB`
-        : size >= 1_000 ? `${(size / 1_000).toFixed(2)} KB`
-        : `${size} B`;
+  if (buildOutput.success) {
+    return Bun.inspect.table(
+      buildOutput.outputs.map(({ path: outPath, size }) => {
+        const pathFormatted = path.relative(CURRENT_DIR, outPath);
+        const sizeFormatted =
+          size >= 1_000_000 ? `${(size / 1_000_000).toFixed(2)} MB`
+          : size >= 1_000 ? `${(size / 1_000).toFixed(2)} KB`
+          : `${size} B`;
 
-      return { path: pathFormatted, size: sizeFormatted };
-    }),
-    { colors: true }
-  );
+        return { path: pathFormatted, size: sizeFormatted };
+      }),
+      { colors: true }
+    );
+  } else {
+    return buildOutput.logs.join("\n");
+  }
 }
 
 /** @returns an array of objects meant to be printed by `console.table` */
