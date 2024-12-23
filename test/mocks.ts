@@ -1,4 +1,4 @@
-import type { BuildWatcher } from "../build-watch";
+import type { BuildWatcher } from "../src";
 
 import { mock, spyOn } from "bun:test";
 

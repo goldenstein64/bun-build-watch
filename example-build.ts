@@ -1,7 +1,7 @@
 import type { BuildConfig } from "bun";
 
 import { parseArgs } from "node:util";
-import buildWatch from "./build-watch";
+import buildWatch from "./src";
 
 const ARGS_CONFIG = {
   args: Bun.argv.slice(2),

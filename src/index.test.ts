@@ -1,8 +1,8 @@
 import type { BuildConfig } from "bun";
 
 import { it, expect, afterEach } from "bun:test";
-import { mockListeners, mockBuild } from "./test/mocks";
-import buildWatch from "./build-watch";
+import { mockListeners, mockBuild } from "../test/mocks";
+import buildWatch from ".";
 
 const testFilePath = "./test/a-file.ts";
 

@@ -1,8 +1,8 @@
 {
   "name": "@goldenstein64/bun-build-watch",
   "version": "0.1.0",
-  "main": "build-watch.ts",
-  "module": "build-watch.ts",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest",
