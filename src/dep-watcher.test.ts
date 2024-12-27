@@ -28,15 +28,12 @@ it("works", async () => {
   const listeners = mockListeners<DepWatchEvents>(watcher, DEP_WATCH_EVENTS);
 
   await watcher.watch();
-
   expect(listeners.callCounts()).toEqual({ watch: 1, change: 0, close: 0 });
 
   await Bun.write(testFilePath, "export default false;\n");
-
   expect(listeners.callCounts()).toEqual({ watch: 1, change: 1, close: 0 });
 
   watcher.close();
-
   expect(listeners.callCounts()).toEqual({ watch: 1, change: 1, close: 1 });
 });
 
@@ -44,7 +41,6 @@ it("throws when given an invalid entrypoint", async () => {
   const paths = ["./!not!a!real!file!"];
 
   const watcher = new DependencyWatcher(paths);
-
   expect(watcher.watch()).rejects.toEqual(expect.anything());
 });
 
