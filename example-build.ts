@@ -1,7 +1,7 @@
 import type { BuildConfig } from "bun";
 
 import { parseArgs } from "node:util";
-import buildWatch from "./src";
+import BuildWatcher from "./src";
 
 const ARGS_CONFIG = {
   args: Bun.argv.slice(2),
@@ -78,13 +78,19 @@ if (help) {
     `Usage: bun example-build.ts [...flags]\n\nFlags:\n${flagsDisplay}`
   );
 } else if (watch) {
-  const watcher = buildWatch(BUILD_CONFIG, {
+  const watcher = new BuildWatcher(BUILD_CONFIG, {
     rescan,
     clearScreen: !noClearScreen,
     exclude,
     quiet,
   });
+
   await watcher.watch();
+
+  process.on("SIGINT", () => {
+    watcher.close();
+    process.exit(0);
+  });
 } else {
   await Bun.build(BUILD_CONFIG);
 }

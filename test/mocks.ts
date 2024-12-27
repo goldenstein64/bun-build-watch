@@ -1,30 +1,35 @@
-import type { BuildWatcher } from "../src";
+import type { Mock } from "bun:test";
 
-import { mock, spyOn } from "bun:test";
+import { mock } from "bun:test";
+import type { EventEmitter2 } from "../src/dep-watcher";
 
-export function mockListeners(watcher: BuildWatcher) {
-  const watchListener = mock(() => {});
-  const buildListener = mock(() => {});
-  const changeListener = mock(() => {});
-  const closeListener = mock(() => {});
+const events = ["watch", "build", "change", "close"] as const;
 
-  watcher.on("watch", watchListener);
-  watcher.on("build", buildListener);
-  watcher.on("change", changeListener);
-  watcher.on("close", closeListener);
+export function mockListeners<
+  Events extends Record<string | symbol, unknown[]>,
+>(source: EventEmitter2<Events>, events: readonly (keyof Events)[]) {
+  for (const evt of events) {
+    const listener = mock(() => {});
+    source.on(evt, listener);
+  }
+
+  const listeners = Object.fromEntries(
+    events.map((evt) => {
+      const listener = mock(() => {});
+      source.on(evt, listener);
+      return [evt, listener] as const;
+    })
+  ) as Record<keyof Events, Mock<() => void>>;
 
   return {
-    watch: watchListener,
-    build: buildListener,
-    change: changeListener,
-    close: closeListener,
-  } as const;
-}
+    ...listeners,
 
-export function mockBuild() {
-  const buildMock = spyOn(Bun, "build");
-  buildMock.mockImplementation(() =>
-    Promise.resolve({ success: true, outputs: [], logs: [] })
-  );
-  return buildMock;
+    callCounts() {
+      return Object.fromEntries(
+        Object.entries(listeners)
+          .values()
+          .map(([k, listener]) => [k, listener.mock.calls.length])
+      ) as Record<keyof Events, number>;
+    },
+  } as const;
 }
