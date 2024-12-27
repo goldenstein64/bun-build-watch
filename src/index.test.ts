@@ -95,20 +95,22 @@ describe("options", () => {
       const listeners = mockListeners(watcher, BUILD_WATCHER_EVENTS);
 
       await watcher.watch();
-
-      expect(listeners.build).toBeCalledTimes(1);
-      expect(listeners.watch).toBeCalledTimes(1);
-      expect(listeners.change).not.toBeCalled();
-      expect(listeners.close).not.toBeCalled();
       expect(mockedBuild).toBeCalledTimes(1);
+      expect(listeners.callCounts()).toEqual({
+        build: 1,
+        watch: 1,
+        change: 0,
+        close: 0,
+      });
 
       await Bun.write(testFilePath, testFileImportDep);
-
-      expect(listeners.build).toBeCalledTimes(2);
-      expect(listeners.watch).toBeCalledTimes(2);
-      expect(listeners.change).toBeCalledTimes(2);
-      expect(listeners.close).not.toBeCalled();
       expect(mockedBuild).toBeCalledTimes(2);
+      expect(listeners.callCounts()).toEqual({
+        build: 2,
+        watch: 2,
+        change: 2,
+        close: 0,
+      });
 
       watcher.close();
     });
@@ -124,25 +126,30 @@ describe("watch()", () => {
     const watcher = new BuildWatcher(buildConfig, { quiet: true });
 
     const listeners = mockListeners(watcher, BUILD_WATCHER_EVENTS);
-
-    expect(listeners.build).not.toBeCalled();
-    expect(listeners.watch).not.toBeCalled();
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).not.toBeCalled();
+    expect(listeners.callCounts()).toEqual({
+      build: 0,
+      watch: 0,
+      change: 0,
+      close: 0,
+    });
     expect(mockedBuild).not.toBeCalled();
 
     await watcher.watch();
-    expect(listeners.build).toBeCalledTimes(1);
-    expect(listeners.watch).toBeCalledTimes(1);
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).not.toBeCalled();
+    expect(listeners.callCounts()).toEqual({
+      build: 1,
+      watch: 1,
+      change: 0,
+      close: 0,
+    });
     expect(mockedBuild).toBeCalledTimes(1);
 
     await watcher.watch();
-    expect(listeners.build).toBeCalledTimes(1);
-    expect(listeners.watch).toBeCalledTimes(1);
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).not.toBeCalled();
+    expect(listeners.callCounts()).toEqual({
+      build: 1,
+      watch: 1,
+      change: 0,
+      close: 0,
+    });
     expect(mockedBuild).toBeCalledTimes(1);
 
     watcher.close();
@@ -171,22 +178,28 @@ describe("rescan()", () => {
 
     const listeners = mockListeners(watcher, BUILD_WATCHER_EVENTS);
 
-    expect(listeners.build).not.toBeCalled();
-    expect(listeners.watch).not.toBeCalled();
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).not.toBeCalled();
+    expect(listeners.callCounts()).toEqual({
+      build: 0,
+      watch: 0,
+      change: 0,
+      close: 0,
+    });
     expect(mockedBuild).not.toBeCalled();
     await watcher.rescan();
-    expect(listeners.build).toBeCalledTimes(1);
-    expect(listeners.watch).toBeCalledTimes(1);
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).not.toBeCalled();
+    expect(listeners.callCounts()).toEqual({
+      build: 1,
+      watch: 1,
+      change: 0,
+      close: 0,
+    });
     expect(mockedBuild).toBeCalledTimes(1);
     await watcher.rescan();
-    expect(listeners.build).toBeCalledTimes(1);
-    expect(listeners.watch).toBeCalledTimes(2);
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).not.toBeCalled();
+    expect(listeners.callCounts()).toEqual({
+      build: 1,
+      watch: 2,
+      change: 0,
+      close: 0,
+    });
     expect(mockedBuild).toBeCalledTimes(1);
 
     watcher.close();
@@ -200,27 +213,33 @@ describe("rescan()", () => {
     const watcher = new BuildWatcher(buildConfig, { quiet: true });
 
     const listeners = mockListeners(watcher, BUILD_WATCHER_EVENTS);
-    expect(listeners.build).not.toBeCalled();
-    expect(listeners.watch).not.toBeCalled();
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).not.toBeCalled();
+    expect(listeners.callCounts()).toEqual({
+      build: 0,
+      watch: 0,
+      change: 0,
+      close: 0,
+    });
     expect(mockedBuild).not.toBeCalled();
 
     watcher.close();
-    expect(listeners.build).not.toBeCalled();
-    expect(listeners.watch).not.toBeCalled();
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).toBeCalledTimes(1);
+    expect(listeners.callCounts()).toEqual({
+      build: 0,
+      watch: 0,
+      change: 0,
+      close: 1,
+    });
     expect(mockedBuild).not.toBeCalled();
 
     expect(watcher.rescan()).rejects.toEqual(
       new Error("cannot watch a closed DependencyWatcher")
     );
 
-    expect(listeners.build).not.toBeCalled();
-    expect(listeners.watch).not.toBeCalled();
-    expect(listeners.change).not.toBeCalled();
-    expect(listeners.close).toBeCalledTimes(1);
+    expect(listeners.callCounts()).toEqual({
+      build: 0,
+      watch: 0,
+      change: 0,
+      close: 1,
+    });
     expect(mockedBuild).not.toBeCalled();
   });
 });
