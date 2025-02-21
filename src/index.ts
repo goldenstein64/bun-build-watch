@@ -136,12 +136,10 @@ export default class BuildWatcher<
     this.once("watch", async (...args) => {
       const buildOutput = await Bun.build(buildConfig);
       this.emit("build", buildOutput);
-      console.log("emitted 'build'");
     });
     this.on("change", async (...args) => {
       const buildOutput = await Bun.build(buildConfig);
       this.emit("build", buildOutput);
-      console.log("emitted 'build'");
     });
 
     if (rescan) {
