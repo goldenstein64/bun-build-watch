@@ -1,18 +1,11 @@
-import type { TSConfig, Glob, BunFile, Import } from "bun";
+import type { TSConfig, Glob, BunFile } from "bun";
 import type { WatchEventType, FSWatcher } from "node:fs";
 
 import EventEmitter from "node:events";
 import { watch } from "node:fs";
 import path from "node:path";
 
-type EventMap<T> = Record<keyof T, any[]> | DefaultEventMap;
-type DefaultEventMap = [never];
-type AnyRest = [...args: any[]];
-type Key<K, T> = T extends DefaultEventMap ? string | symbol : K | keyof T;
-type Args<K, T> =
-  T extends DefaultEventMap ? AnyRest
-  : K extends keyof T ? T[K]
-  : never;
+import findImports from "./find-imports";
 
 const USES_WIN32_SEP = path.sep === path.win32.sep;
 const CURRENT_DIR = process.cwd();
@@ -80,119 +73,6 @@ export const DEFAULT_EXCLUDE: string[] = [
   // typically, node_modules doesn't change much when watching builds
   "./node_modules/**",
 ];
-
-const extRegex = /\.(js|jsx|ts|tsx)$/;
-
-class PathsMap extends Map<string, Set<string>> {}
-
-async function findImportsOnce(
-  filePaths: Set<string>,
-  { findTSConfig, excludeGlobs }: ScanConfig
-): Promise<PathsMap> {
-  type ExtCapture = "js" | "jsx" | "ts" | "tsx";
-
-  const childFiles = await Promise.all(
-    filePaths
-      .values()
-      .map(async (parentPath): Promise<[string, Set<string>] | undefined> => {
-        const match = parentPath.match(extRegex);
-        if (match === null) return undefined;
-        const loader = match[0] as ExtCapture;
-
-        const parentFile = Bun.file(parentPath);
-        const parentExists = await parentFile.exists();
-        if (!parentExists) return undefined;
-
-        const transpiler = new Bun.Transpiler({
-          tsconfig: await findTSConfig(parentPath),
-          loader,
-        });
-
-        let imports: Import[];
-        try {
-          imports = transpiler.scanImports(await parentFile.bytes());
-        } catch (err) {
-          if (err instanceof BuildMessage && err.level === "error") {
-            // something went wrong when parsing this file, return undefined
-            console.error(err);
-            return undefined;
-          } else {
-            throw err;
-          }
-        }
-
-        const resolvedImports = await Promise.all(
-          imports
-            .values()
-            .map(async ({ path: importPath }): Promise<string | undefined> => {
-              // import.meta.resolve seems to take node_modules into account
-              // and Bun.resolveSync resolves the URL to a file path
-              let resolvedImportPath: string;
-              resolvedImportPath = Bun.resolveSync(
-                import.meta.resolve(importPath, parentPath),
-                parentPath
-              );
-
-              const resolvedFile = Bun.file(resolvedImportPath);
-
-              if (
-                excludeGlobs.every((glob) => !glob.match(resolvedImportPath)) &&
-                (await resolvedFile.exists())
-              ) {
-                return resolvedImportPath;
-              }
-            })
-        );
-
-        return [
-          parentPath,
-          new Set<string>(resolvedImports.filter((str) => str !== undefined)),
-        ];
-      })
-  );
-
-  return new PathsMap(childFiles.filter((value) => value !== undefined));
-}
-
-function mergePaths(allPaths: PathsMap, foundPaths: PathsMap) {
-  for (const [parentPath, childPaths] of foundPaths) {
-    const allChildPaths = allPaths.get(parentPath);
-    if (!allChildPaths) {
-      allPaths.set(parentPath, childPaths);
-      continue;
-    }
-
-    // If the same link `parent -> child` is found twice, there is a cyclic
-    // import.
-    if (!allChildPaths.isDisjointFrom(childPaths)) {
-      throw new TypeError(
-        `Cyclic import detected: ${parentPath}\n\t-> ${[
-          ...allChildPaths.intersection(childPaths),
-        ].join("\n\t-> ")}`
-      );
-    }
-    allPaths.set(parentPath, allChildPaths.union(childPaths));
-  }
-}
-
-/** recursively scans the files specified by `paths` for import paths */
-export async function findImports(
-  paths: Iterable<string>,
-  scanConfig: ScanConfig
-): Promise<Set<string>> {
-  const allPaths = new PathsMap();
-  let foundPaths = new PathsMap().set("", new Set(paths));
-  while (foundPaths.size > 0) {
-    mergePaths(allPaths, foundPaths);
-
-    foundPaths = await findImportsOnce(
-      new Set(foundPaths.values().flatMap((value) => value)),
-      scanConfig
-    );
-  }
-
-  return new Set(allPaths.values().flatMap((value) => value));
-}
 
 export interface DepWatchEvents
   extends Record<string, unknown[]>,
