@@ -117,6 +117,8 @@ export interface BuildWatchEvents extends DepWatchEvents {
 export default class BuildWatcher<
   Events extends BuildWatchEvents = BuildWatchEvents,
 > extends DependencyWatcher<Events> {
+  testId: string | undefined;
+
   constructor(
     buildConfig: BuildConfig,
     {

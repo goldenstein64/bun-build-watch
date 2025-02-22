@@ -1,52 +1,63 @@
-import type { BuildConfig } from "bun";
-
-import { describe, it, expect, beforeEach, spyOn, afterAll } from "bun:test";
-import path from "node:path";
+import { describe, it, expect, beforeEach, afterAll } from "bun:test";
 import { mockListeners } from "../test/mocks";
+import {
+  getTestFile,
+  cleanCurrentFiles,
+  cleanAllFiles,
+} from "../test/test-file-gen";
 import DependencyWatcher, { type DepWatchEvents } from "./dep-watcher";
 
-const testFilePath = path.resolve("./test/a-file.ts");
-const testDepPath = path.resolve("./test/a-dependency.ts");
+const TEST_FILE_PATH = "./test/files/a-file.ts";
+
+const EXPORT_TRUE_TEXT = "export default true;\n";
+const EXPORT_FALSE_TEXT = "export default false;\n";
 
 const DEP_WATCH_EVENTS = ["watch", "change", "close"] as const;
 
 beforeEach(async () => {
-  await Bun.write(testFilePath, "export default true;\n");
-  await Bun.write(testDepPath, "export default true;\n");
+  await cleanCurrentFiles();
 });
 
 afterAll(async () => {
-  await Bun.write(testFilePath, "export default true;\n");
-  await Bun.write(testDepPath, "export default true;\n");
+  await cleanAllFiles();
 });
 
 it("works", async () => {
-  const paths = [testFilePath];
+  const testFile = await getTestFile(EXPORT_TRUE_TEXT);
+  const paths = [testFile.name!];
 
   const watcher = new DependencyWatcher(paths);
 
   const listeners = mockListeners<DepWatchEvents>(watcher, DEP_WATCH_EVENTS);
 
-  await watcher.watch();
-  expect(listeners.callCounts()).toEqual({ watch: 1, change: 0, close: 0 });
+  try {
+    await watcher.watch();
+    expect(listeners.callCounts()).toEqual({ watch: 1, change: 0, close: 0 });
 
-  await Bun.write(testFilePath, "export default false;\n");
-  expect(listeners.callCounts()).toEqual({ watch: 1, change: 1, close: 0 });
-
-  watcher.close();
-  expect(listeners.callCounts()).toEqual({ watch: 1, change: 1, close: 1 });
+    await testFile.write(EXPORT_FALSE_TEXT);
+    expect(listeners.callCounts()).toEqual({ watch: 1, change: 1, close: 0 });
+  } finally {
+    watcher.close();
+    expect(listeners.callCounts()).toEqual({ watch: 1, change: 1, close: 1 });
+    listeners.cleanup();
+  }
 });
 
 it("throws when given an invalid entrypoint", async () => {
   const paths = ["./!not!a!real!file!"];
 
   const watcher = new DependencyWatcher(paths);
-  expect(watcher.watch()).rejects.toEqual(expect.anything());
+  try {
+    expect(watcher.watch()).rejects.toEqual(expect.anything());
+  } finally {
+    watcher.close();
+  }
 });
 
 describe("watch()", () => {
   it("does nothing after the first call", async () => {
-    const paths = [testFilePath];
+    const testFile = await getTestFile(EXPORT_TRUE_TEXT);
+    const paths = [testFile.name!];
 
     const watcher = new DependencyWatcher(paths);
 
@@ -64,7 +75,8 @@ describe("watch()", () => {
   });
 
   it("errors when called after close", async () => {
-    const paths = [testFilePath];
+    const testFile = await getTestFile(EXPORT_TRUE_TEXT);
+    const paths = [testFile.name!];
 
     const watcher = new DependencyWatcher(paths);
 
@@ -76,7 +88,8 @@ describe("watch()", () => {
 
 describe("rescan()", () => {
   it("can run multiple times", async () => {
-    const paths = [testFilePath];
+    const testFile = await getTestFile(EXPORT_TRUE_TEXT);
+    const paths = [testFile.name!];
 
     const watcher = new DependencyWatcher(paths);
 
@@ -92,7 +105,7 @@ describe("rescan()", () => {
   });
 
   it("errors when called after close", async () => {
-    const paths = [testFilePath];
+    const paths = [TEST_FILE_PATH];
 
     const watcher = new DependencyWatcher(paths);
 
@@ -112,7 +125,7 @@ describe("rescan()", () => {
 
 describe("close()", () => {
   it("does nothing after the first call", async () => {
-    const paths = [testFilePath];
+    const paths = [TEST_FILE_PATH];
 
     const watcher = new DependencyWatcher(paths);
 

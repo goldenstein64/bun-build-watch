@@ -3,18 +3,11 @@ import type { Mock } from "bun:test";
 import { mock } from "bun:test";
 import type { EventEmitter2 } from "../src/dep-watcher";
 
-const events = ["watch", "build", "change", "close"] as const;
-
 export function mockListeners<
   Events extends Record<string | symbol, unknown[]>,
 >(source: EventEmitter2<Events>, events: readonly (keyof Events)[]) {
-  for (const evt of events) {
-    const listener = mock(() => {});
-    source.on(evt, listener);
-  }
-
   const listeners = Object.fromEntries(
-    events.map((evt) => {
+    events.values().map((evt) => {
       const listener = mock(() => {});
       source.on(evt, listener);
       return [evt, listener] as const;
@@ -30,6 +23,12 @@ export function mockListeners<
           .values()
           .map(([k, listener]) => [k, listener.mock.calls.length])
       ) as Record<keyof Events, number>;
+    },
+
+    cleanup() {
+      for (const [evt, listener] of Object.entries(listeners)) {
+        source.off(evt, listener);
+      }
     },
   } as const;
 }

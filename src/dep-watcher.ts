@@ -1,4 +1,4 @@
-import type { TSConfig, Glob, BunFile } from "bun";
+import type { TSConfig, Glob, BunFile, Import } from "bun";
 import type { WatchEventType, FSWatcher } from "node:fs";
 
 import EventEmitter from "node:events";
@@ -108,7 +108,19 @@ async function findImportsOnce(
           loader,
         });
 
-        const imports = transpiler.scanImports(await parentFile.bytes());
+        let imports: Import[];
+        try {
+          imports = transpiler.scanImports(await parentFile.bytes());
+        } catch (err) {
+          if (err instanceof BuildMessage && err.level === "error") {
+            // something went wrong when parsing this file, return undefined
+            console.error(err);
+            return undefined;
+          } else {
+            throw err;
+          }
+        }
+
         const resolvedImports = await Promise.all(
           imports
             .values()
@@ -165,7 +177,7 @@ function mergePaths(allPaths: PathsMap, foundPaths: PathsMap) {
 
 /** recursively scans the files specified by `paths` for import paths */
 export async function findImports(
-  paths: string[],
+  paths: Iterable<string>,
   scanConfig: ScanConfig
 ): Promise<Set<string>> {
   const allPaths = new PathsMap();
@@ -281,6 +293,8 @@ export default class DependencyWatcher<
   /** stops watching files */
   close(): void {
     if (this.state === "closed") return;
+
+    for (const watcher of this.watchers) watcher.close();
 
     this.state = "closed";
     this.emit("close");
